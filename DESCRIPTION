@@ -1,0 +1,20 @@
+Package: Phase2.2CATE
+Title: 4CE CATE analysis
+Version: 0.1.0
+Authors@R: 
+    person("Clara-Lea", "Bonzel", email = "clara-lea_bonzel@hms.harvard.edu", role = c("aut", "cre"))
+Description: Estimate CATE using only data in each 4CE site
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.1
+Imports:
+  SuperLearner, 
+  data.table, 
+  dplyr, 
+  tidyr,
+  ggpubr, 
+  partykit,
+  rattle, 
+  reshape2, 
+  rpart
