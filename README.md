@@ -15,7 +15,7 @@ This package should be run locally (i.e. NOT on docker). You can install
 the development version of Phase2.2CATE like so:
 
 ``` r
-remotes::install_github('clara-lea/Phase2.2CATE')
+devtools::install_github("claralea/Phase2.2CATE")
 ```
 
 ## Running the analysis
