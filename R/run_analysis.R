@@ -25,7 +25,7 @@ run_analysis = function(input.path, output.path, siteid){
   
   res_all = NULL
   
-  for(i in c(1,4,10)){
+  for(i in seq(1:12)){
     Y = as.matrix(data.input$Y.all[, ..i])
     Y <- Y[train_ind]
     print(paste0("Running analysis for outcome: ", colnames(data.input$Y.all[, ..i])))
