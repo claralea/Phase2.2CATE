@@ -1,4 +1,3 @@
-library(data.table)
 
 construct_outcomes = function(summary,
                               obs,
@@ -69,7 +68,7 @@ construct_outcomes = function(summary,
                        "post_vaccine_infection_3month"=ifelse(pat.keep %in% pat.inf.post90,1,0),
                        "post_vaccine_infection_6month"=ifelse(pat.keep %in% pat.inf.post180,1,0),
                        "post_vaccine_infection_9month"=ifelse(pat.keep %in% pat.inf.post270,1,0),
-                       "post_vaccine_infection_999"=ifelse(pat.keep %in% pat.inf.postall,1,0))
+                       "post_vaccine_infection_999"=ifelse(pat.keep %in% pat.inf.post999,1,0))
   
   
   ### Construct hospitalization flag among those infected after vaccine
@@ -121,6 +120,9 @@ construct_outcomes = function(summary,
   
   
 }
+
+
+
 
 create.table = function(input.path){
   #### Read the data
@@ -177,7 +179,7 @@ create.table = function(input.path){
   dat.loc.obs = left_join(dat.loc.patobs, 
                           dat.loc.sum[,c('cohort', 'patient_num', 'admission_date')], 
                           by = c('cohort', 'patient_num'))
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.covid] = 'infected'
+  # dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.covid] = 'infected'
   dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.asthma] = 'asthma'
   dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.bronch] = 'bronchitis'
   dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.copd] = 'copd'
@@ -221,11 +223,24 @@ create.table = function(input.path){
   dat.input[is.na(dat.input)] = 0 ## 0 when don't have any cov
   dat.input = left_join(dat.input, res, by = c('patient_num'))
   
+  # make data split reproducible
+  set.seed(2022)
   
-return(list(X = dat.input[, c(4:18),],
-              A = dat.input[, 3],
-              Y.all = dat.input[, c(19:30)]))
+  # use 20% of dataset for tree and 80% for FACE
+  train = dat.input %>% dplyr::sample_frac(0.20)
+  test  = dplyr::anti_join(dat.input, train, by = 'patient_num')
+  
+  write.csv(train, file = paste0(output.path, '/train_', siteid, '.csv'), row.names = F)
+  write.csv(test, file = paste0(output.path, '/test_', siteid, '.csv'), row.names = F)
+  
+  
+  return(list(X.train = train[, c(4:18)],
+              A.train = train[, 3],
+              Y.train = train[, c(19:30)],
+              X.test = test[,c(4:18),],
+              A.test = test[, 3],
+              Y.test = test[, c(19:30)]))
+  
 }
-
 
 
