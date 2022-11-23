@@ -221,10 +221,19 @@ create.table = function(input.path){
   dat.input[is.na(dat.input)] = 0 ## 0 when don't have any cov
   dat.input = left_join(dat.input, res, by = c('patient_num'))
   
+ # make data split reproducible
+  set.seed(2022)
   
-return(list(X = dat.input[, c(4:18),],
-              A = dat.input[, 3],
-              Y.all = dat.input[, c(19:30)]))
+  # use 20% of dataset for tree and 80% for FACE
+  train = dat.input %>% dplyr::sample_frac(0.20)
+  test  = dplyr::anti_join(dat.input, train, by = 'patient_num')
+  
+  return(list(X.train = train[, c(4:18),],
+              A.train = train[, 3],
+              Y.train = train[, c(19:30)],
+              X.test = test[,c(4:18),],
+              A.test = test[, 3],
+              Y.test = test[, c(19:30)]))
 }
 
 
