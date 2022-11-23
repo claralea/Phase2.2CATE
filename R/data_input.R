@@ -1,3 +1,127 @@
+library(data.table)
+
+construct_outcomes = function(summary,
+                              obs,
+                              vax){
+  
+  summary=data.frame(summary)
+  obs=data.frame(obs)
+  vax=data.frame(vax)
+  vax[,"vaccine_date"]=as.Date(vax[,"vaccine_date"])
+  summary[,"admission_date"]=as.Date(summary[,"admission_date"])
+  
+  ### Clean vax data
+  vax = vax %>%
+    group_by(patient_num)%>%
+    slice_min(vaccine_date) %>%
+    ungroup()
+  vax=data.frame(vax)
+  
+  ### Only select patients who have >=1 Pfizer or Moderna dose
+  vax=vax%>%
+    filter(vaccine_type %in% c("Pfizer","Moderna"))
+  pat.keep=vax[,"patient_num"]
+  obs=obs%>%
+    filter(patient_num %in% pat.keep)
+  summary=summary%>%
+    filter(patient_num %in% pat.keep)
+  
+  obs=left_join(obs,
+                dplyr::select(summary,patient_num,admission_date,death_date),
+                by="patient_num")
+  
+  obs = obs %>%
+    mutate("obs_date"=admission_date+days_since_admission)
+  
+  obs=left_join(obs,
+                dplyr::select(vax,patient_num,vaccine_date),
+                by="patient_num")
+  
+  obs = obs %>%
+    mutate("days_since_vaccine"=as.numeric(obs_date-vaccine_date))
+  
+  ### Construct pre-vax infection flag
+  tmp=obs%>%
+    filter(concept_code %in% c("covidpos",'U07.1'))%>%
+    mutate("inf_pre"=obs_date<vaccine_date)
+  
+  pat.inf.pre=unique(tmp$patient_num[tmp$inf_pre==TRUE])
+  res=data.frame("patient_num"=pat.keep,
+                 "pre_vaccine_infection"=ifelse(pat.keep %in% pat.inf.pre,1,0))
+  
+  
+  ### Construct post-vax infection flag
+  tmp=obs%>%
+    filter(concept_code %in% c("covidpos",'U07.1'),
+           days_since_vaccine>0)%>%
+    group_by(patient_num)%>%
+    slice_min(days_since_vaccine)%>%
+    ungroup()
+  tmp=data.frame(tmp)
+  
+  pat.inf.post90=unique(tmp$patient_num[tmp$days_since_vaccine<=90])
+  pat.inf.post180=unique(tmp$patient_num[tmp$days_since_vaccine<=180])
+  pat.inf.post270=unique(tmp$patient_num[tmp$days_since_vaccine<=270])
+  pat.inf.post999=unique(tmp$patient_num[tmp$days_since_vaccine<=999])
+  
+  
+  res=cbind.data.frame(res,
+                       "post_vaccine_infection_3month"=ifelse(pat.keep %in% pat.inf.post90,1,0),
+                       "post_vaccine_infection_6month"=ifelse(pat.keep %in% pat.inf.post180,1,0),
+                       "post_vaccine_infection_9month"=ifelse(pat.keep %in% pat.inf.post270,1,0),
+                       "post_vaccine_infection_999"=ifelse(pat.keep %in% pat.inf.postall,1,0))
+  
+  
+  ### Construct hospitalization flag among those infected after vaccine
+  tmp=obs%>%
+    filter(concept_code %in% c("covidpos",'U07.1'),
+           days_since_vaccine>0,
+           grepl("PosAdm|U071Adm",cohort))%>%
+    mutate("days_from_vaccine_to_hosp"=as.numeric(admission_date-vaccine_date))%>%
+    filter(days_from_vaccine_to_hosp>0)
+  
+  tmp=data.frame(tmp)
+  
+  pat.hosp.post90=unique(tmp$patient_num[tmp$days_from_vaccine_to_hosp<=90])
+  pat.hosp.post180=unique(tmp$patient_num[tmp$days_from_vaccine_to_hosp<=180])
+  pat.hosp.post270=unique(tmp$patient_num[tmp$days_from_vaccine_to_hosp<=270])
+  pat.hosp.post999=unique(tmp$patient_num[tmp$days_from_vaccine_to_hosp<=999])
+  
+  
+  res=cbind.data.frame(res,
+                       "hosp_3month"=ifelse(pat.keep %in% pat.hosp.post90,1,0),
+                       "hosp_6month"=ifelse(pat.keep %in% pat.hosp.post180,1,0),
+                       "hosp_9month"=ifelse(pat.keep %in% pat.hosp.post270,1,0),
+                       "hosp_999"=ifelse(pat.keep %in% pat.hosp.post999,1,0))
+  
+  ### Construct death flag among those infected after vaccine
+  tmp=obs%>%
+    filter(concept_code %in% c("covidpos",'U07.1'),
+           days_since_vaccine>0,
+           as.numeric(as.Date(death_date)-obs_date)>0)%>%
+    mutate("days_from_vaccine_to_death"=as.numeric(as.Date(death_date)-vaccine_date))%>%
+    filter(days_from_vaccine_to_death>0)
+  
+  tmp=data.frame(tmp)
+  
+  pat.death.post90=unique(tmp$patient_num[tmp$days_from_vaccine_to_death<=90])
+  pat.death.post180=unique(tmp$patient_num[tmp$days_from_vaccine_to_death<=180])
+  pat.death.post270=unique(tmp$patient_num[tmp$days_from_vaccine_to_death<=270])
+  pat.death.post999=unique(tmp$patient_num[tmp$days_from_vaccine_to_death<=999])
+  
+  
+  res=cbind.data.frame(res,
+                       "death_3month"=ifelse(pat.keep %in% pat.death.post90,1,0),
+                       "death_6month"=ifelse(pat.keep %in% pat.death.post180,1,0),
+                       "death_9month"=ifelse(pat.keep %in% pat.death.post270,1,0),
+                       "death_999"=ifelse(pat.keep %in% pat.death.post999,1,0))
+  
+  
+  return(res)
+  
+  
+}
+
 create.table = function(input.path){
   #### Read the data
   dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
@@ -87,42 +211,15 @@ create.table = function(input.path){
   
   dat.cov.save = spread(dat.loc.obs[,c('cohort', 'patient_num', 'cov', 'cov_index')], key = cov, value = cov_index, fill = 0)
   
-  #### Select outcome info
-  ## 9 outcomes: svere case, hospitalization, death.
-  ## binary indicators for the event within 3 months, 6 months, and 9 months of the first dose.
-  
-  dat.out = dat.loc.sum[,c('cohort', 'patient_num', 'severe_date', 'severe', 'icu_date', 'icu', 'death_date', 'dead')]
-  dat.out = left_join(dat.out, dat.loc.vac[,c('cohort', 'patient_num', 'vaccine_date', 'vaccine_type')], by = c('cohort', 'patient_num'))
-  
-  dat.out = dat.out %>% filter(vaccine_type %in% c('Moderna', 'Pfizer'))
-  
-  dat.out$severe_days = as.numeric(difftime(dat.out$severe_date, dat.out$vaccine_date, units = 'days'))
-  dat.out$icu_days = as.numeric(difftime(dat.out$icu_date, dat.out$vaccine_date, units = 'days'))
-  dat.out$dead_days = as.numeric(difftime(dat.out$death_date, dat.out$vaccine_date, units = 'days'))
-  
-  dat.out$severe_3[dat.out$severe_days < 90 & dat.out$severe_days >=0] = 1
-  dat.out$severe_6[dat.out$severe_days < 180 & dat.out$severe_days >=0] = 1
-  dat.out$severe_9[dat.out$severe_days < 270 & dat.out$severe_days >=0] = 1
-  
-  dat.out$icu_3[dat.out$icu_days < 90 & dat.out$icu_days >=0] = 1
-  dat.out$icu_6[dat.out$icu_days < 180 & dat.out$icu_days >=0] = 1
-  dat.out$icu_9[dat.out$icu_days < 270 & dat.out$icu_days >=0] = 1
-  
-  dat.out$dead_3[dat.out$dead_days < 90 & dat.out$dead_days >=0] = 1
-  dat.out$dead_6[dat.out$dead_days < 180 & dat.out$dead_days >=0] = 1
-  dat.out$dead_9[dat.out$dead_days < 270 & dat.out$dead_days >=0] = 1
-  
-  dat.out.save = dat.out %>% select(cohort, patient_num, severe_3, severe_6, severe_9, icu_3, icu_6, icu_9, dead_3, dead_6, dead_9)
-  dat.out.save[is.na(dat.out.save)] = 0
+ 
   
   #### combine the datasets
   dat.input = left_join(dat.imp.save, dat.cov.save, by = c('cohort', 'patient_num'))
   dat.input[is.na(dat.input)] = 0 ## 0 when don't have any cov
-  dat.input = left_join(dat.input, dat.out.save, by = c('cohort', 'patient_num'))
-  dat.input$infected = ifelse(dat.input$severe_9==1,1,dat.input$infected)
+  dat.input = left_join(dat.input, res, by = c('patient_num'))
   
   
-  return(list(X = dat.input[, c(4:17)],
+return(list(X = dat.input[, c(4:18),],
               A = dat.input[, 3],
-              Y.all = dat.input[, c(18:27)]))
+              Y.all = dat.input[, c(19:30)]))
 }
