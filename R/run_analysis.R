@@ -12,7 +12,12 @@ run_analysis = function(input.path, output.path, siteid){
   X = as.matrix(data.input$X)
   A = as.matrix(data.input$A)
   
-  p=14
+  set.seed(123)
+  train_ind <- sample(1:nrow(A), size=floor(0.2 * nrow(A)))
+  X <- X[train_ind,]
+  A <- A[train_ind]
+  
+  p=ncol(X)
   X_full <- as.matrix(expand.grid(rep(list(0:1), p)))
   X_full_df <- data.frame(X_full)
   X_full_df[,1:p] <- lapply(X_full_df[,1:p], factor)
@@ -22,6 +27,7 @@ run_analysis = function(input.path, output.path, siteid){
   
   for(i in c(1,4,10)){
     Y = as.matrix(data.input$Y.all[, ..i])
+    Y <- Y[train_ind]
     print(paste0("Running analysis for outcome: ", colnames(data.input$Y.all[, ..i])))
     
     res_y = site_estimation(X, A, Y)
