@@ -129,6 +129,9 @@ create.table = function(input.path){
   dat.loc.patobs = fread(paste0(input.path, '/LocalPatientObservations.csv'))
   dat.loc.vac = fread(paste0(input.path, '/LocalPatientVaccine.csv'))
   
+  # Create outcomes
+  res = construct_outcomes(dat.loc.sum, dat.loc.patobs, dat.loc.vac)
+  
   #### Select unique patients and vaccine info / Only keep Moderna(1) and Pfizer(0). Save date for now as t0
   dat.imp = dat.loc.vac %>% filter(vaccine_type %in% c('Moderna', 'Pfizer'))
   dat.imp$A[which(dat.imp$vaccine_type == 'Moderna')] = 1
@@ -223,3 +226,6 @@ return(list(X = dat.input[, c(4:18),],
               A = dat.input[, 3],
               Y.all = dat.input[, c(19:30)]))
 }
+
+
+
