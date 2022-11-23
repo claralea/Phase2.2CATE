@@ -43,7 +43,7 @@ site_estimation <- function(X, A, Y, ps.model="LR", or.model="SL", threshold=0, 
     pi_est <- predict(pi_fit, X[,test_rank_x], onlySL = TRUE)$pred
   } else if (ps.model == "LR"){
     df_ps <- data.frame(cbind(X[,test_rank_x], A))
-    colnames(df_ps) = c(colnames(X),"A")
+    colnames(df_ps) = c(colnames(X[,test_rank_x]),"A")
     pi_fit <- glm(A ~ ., data = df_ps, family = "binomial")
     pi_est <- predict(pi_fit, X[,test_rank_x], type = "response")
   }
@@ -56,7 +56,7 @@ site_estimation <- function(X, A, Y, ps.model="LR", or.model="SL", threshold=0, 
     mu0_est <- predict(mu0_fit, X[,test_rank_x], onlySL = TRUE)$pred
   } else if (or.model == "LR"){
     df_mu <- data.frame(cbind(X[, test_rank_x], Y))
-    colnames(df_mu) = c(colnames(X),"Y")
+    colnames(df_mu) = c(colnames(X[,test_rank_x]),"Y")
     mu1_fit <- glm(Y ~ ., data = df_mu[A==1,], family = "binomial")
     mu0_fit <- glm(Y ~ ., data = df_mu[A==0,], family = "binomial")
     mu1_est <- predict(mu1_fit, X[,test_rank_x], type = "response")
