@@ -237,7 +237,7 @@ create.table = function(input.path){
   return(list(X.train = train[, c(4:18)],
               A.train = train[, 3],
               Y.train = train[, c(19:30)],
-              X.test = test[,c(4:18),],
+              X.test = test[,c(4:18)],
               A.test = test[, 3],
               Y.test = test[, c(19:30)]))
   
