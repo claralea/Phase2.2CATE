@@ -223,6 +223,11 @@ create.table = function(input.path){
   dat.input[is.na(dat.input)] = 0 ## 0 when don't have any cov
   dat.input = left_join(dat.input, res, by = c('patient_num'))
   
+  dat.input = na.omit(dat.input)
+
+  # Summary statistics for the processed data
+  summary(dat.input[, c(3:30)])
+  
   # make data split reproducible
   set.seed(2022)
   
