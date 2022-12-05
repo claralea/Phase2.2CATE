@@ -1,4 +1,3 @@
-
 construct_outcomes = function(summary,
                               obs,
                               vax){
@@ -126,10 +125,17 @@ construct_outcomes = function(summary,
 
 create.table = function(input.path){
   #### Read the data
+  #input.path="/Users/harrisonzhang/Dropbox (HMS)/4CE/Vaccine Study/Phase2.2CATE-main/R/"
   dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
   dat.loc.sum = fread(paste0(input.path, '/LocalPatientSummary.csv'))
   dat.loc.patobs = fread(paste0(input.path, '/LocalPatientObservations.csv'))
   dat.loc.vac = fread(paste0(input.path, '/LocalPatientVaccine.csv'))
+  
+  #### Map observatons to PheCodes
+  dat.icd=dplyr::filter(dat.loc.patobs,concept_type%in%c("DIAG-ICD10","DIAG-ICD9"))
+  dat.phecode=left_join(dat.icd, icd10.phecode.map[,c("concept_code","phecode","description")],
+                    by="concept_code")
+  dat.phecode=dplyr::filter(dat.phecode,!is.na(dat.phecode$phecode))
   
   # Create outcomes
   res = construct_outcomes(dat.loc.sum, dat.loc.patobs, dat.loc.vac)
@@ -155,68 +161,60 @@ create.table = function(input.path){
   dat.imp.save = left_join(dat.imp[, c('cohort', 'patient_num','A', 'gender_male', 'age_50', 'age_70', 'age_80')],
                            dat.loc.race[, c('cohort', 'patient_num', 'race')], by = c('cohort', 'patient_num'))
   
+  
   #### Select covariates info
-  icd.asthma = c('J45')# Asthma
-  icd.bronch = c('J20', 'J21', 'J40', 'J41', 'J42')# Bronchitis
-  icd.copd = c('J41.0', 'J41.1', 'J41.8', 'J42', 'J43.0', 'J43.1','J43.2', 'J43.8', 'J43.9', 'J44.0', 'J44.1', 'J44.9')# COPD
-  icd.ami = c('I21, I22')# AMI
-  icd.chd7 = c('I25.110','I25.700', 'I25.710', 'I25.720', 'I25.730','I25.750', 'I25.760', 'I25.790',
-               'I25.810','I25.811', 'I25.812')
-  icd.chd6 = c('I20', 'I21', 'I24', 'I25.10', 'I25.41', 'I25.42', 'I25.82', 'I25.83', 'I25.84', 'I25.89')# CHD
-  icd.chd5 = c('I25.2', 'I25.3','I25.5', 'I25.9')
-  icd.hf5 = c('I11.0', 'I13.0', 'I13.2', 'I50.9', 'I50.1')# HF
-  icd.hf6 = c('I50.20', 'I50.21', 'I50.22', 'I50.23', 'I50.30', 'I50.31', 'I50.32',
-              'I50.33', 'I50.40', 'I50.41', 'I50.42', 'I50.43', 'I50.82', 'I50.83', 'I50.84', 'I50.89')
-  icd.hf7 = c('I50.814','I50.810', 'I50.811', 'I50.812', 'I50.813')
-  icd.hypert = c('I10', 'I11', 'I12', 'I13', 'I15', 'I16')# Hypertension
-  icd.hypert5 = c('I11.0','I10.0','I11.9','I12.0','I12.9','I13.0','I13.1','I13.9','I15.0','I15.1','I15.9')
-  icd.diabetes = c('E11.9','E11.8','E11.7')# Diabetes T2
-  icd.ckd = c('I12.0', 'I13.1', 'N03.2', 'N03.3', 'N03.4', 'N03.5', 'N03.6', 'N03.7', 'N05.2', 'N05.3',
-              'N05.4', 'N05.5', 'N05.6', 'N05.7', 'N25.0',
-              'N18.1','N18.2', 'N18.3', 'N18.4', 'N18.5','N18.9', 'Z49.0', 'Z49.1', 'Z49.2', 'Z94.0', 'Z99.2')# CKD
-  icd.cancer = c(paste0('C0', c(0:9)), paste0('C', c(10:41)), 'C43', 'C45', paste0('C', c(47:86)), 'C88', paste0('C', c(90:96)), 'C7A', 'C7B')# Cancer
-  icd.covid = c('U07.1')
-  dat.loc.obs = left_join(dat.loc.patobs, 
+  dat.loc.obs = left_join(dat.phecode, 
                           dat.loc.sum[,c('cohort', 'patient_num', 'admission_date')], 
                           by = c('cohort', 'patient_num'))
-  # dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.covid] = 'infected'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.asthma] = 'asthma'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.bronch] = 'bronchitis'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.copd] = 'copd'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.ami] = 'ami'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 7) %in% icd.chd7] = 'chd'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 6) %in% icd.chd6] = 'chd'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.chd5] = 'chd'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 7) %in% icd.hf7] = 'hf'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 6) %in% icd.hf6] = 'hf'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.hf5] = 'hf'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 3) %in% icd.hypert] = 'hypertension'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.hypert5] = 'hypertension'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.diabetes] = 'diabetes'
-  dat.loc.obs$cov[substr(dat.loc.obs$concept_code, 1, 5) %in% icd.ckd] = 'ckd'
-  dat.loc.obs$cov[dat.loc.obs$concept_code %like% paste(icd.cancer, collapse="|") ] = 'cancer'
+  dat.loc.obs=dat.loc.obs[!duplicated(dat.loc.obs),]
+  ### Identify relevant covariates of interest
+  cov.str=c("asthma","bronchitis","emphysema","hypertension",
+            "CKD","heart failure","obesity")
+  icd.cancer = c(paste0('C0', c(0:9)), paste0('C', c(10:41)), 'C43', 'C45', paste0('C', c(47:86)), 'C88', paste0('C', c(90:96)), 'C7A', 'C7B')
+  phecode.cancer = icd10.phecode.map$phecode[icd10.phecode.map$concept_code %in% icd.cancer];phecode.cancer=unique(phecode.cancer)
+  phecode.chd="411"
+  phecode.t2d="250.2"
+  phecode.copd="496"
+  dat.loc.obs = dat.loc.obs %>%
+    dplyr::filter(grepl(paste0(cov.str,collapse = "|"),
+                        description,
+                        ignore.case = T) | phecode %in% c(phecode.cancer,phecode.chd,phecode.t2d,phecode.copd))
   
+  ### HARRISON: remember to correct for COPD using Emphysema and chronic bronchitis 496.2 496.21 496.1
+  dat.loc.obs$cov = dat.loc.obs$description
+  dat.loc.obs$cov = tolower(dat.loc.obs$cov)
+  dat.loc.obs$cov[grepl("asthma",dat.loc.obs$cov,ignore.case = T)]="asthma"
+  dat.loc.obs$cov[grepl("bronchitis",dat.loc.obs$cov,ignore.case = T)]="bronchitis"
+  dat.loc.obs$cov[dat.loc.obs$phecode %in% c("496.2","496.21","496.1","496")]="copd"
+  dat.loc.obs$cov[dat.loc.obs$phecode %in% phecode.chd]="chd"
+  dat.loc.obs$cov[grepl("heart failure",dat.loc.obs$cov,ignore.case = T)]="hf"
+  dat.loc.obs$cov[grepl("hypertension",dat.loc.obs$cov,ignore.case = T)]="hypertension"
+  dat.loc.obs$cov[dat.loc.obs$phecode %in% phecode.t2d]="diabetes"
+  dat.loc.obs$cov[grepl("CKD",dat.loc.obs$cov,ignore.case = T)]="ckd"
+  dat.loc.obs$cov[dat.loc.obs$phecode %in% phecode.cancer]="cancer"
+  dat.loc.obs$cov[grepl("obesity",dat.loc.obs$cov,ignore.case = T)]="obesity"
   
-  ## delete rows with  othe codes
-  dat.loc.obs = na.omit(dat.loc.obs)
+  dat.loc.obs = dat.loc.obs %>%
+    dplyr::filter(cov %in% c("asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity"))
+  
+  ## delete rows with other codes
+  #dat.loc.obs = na.omit(dat.loc.obs)
   dat.loc.obs = left_join(dat.loc.obs, dat.loc.vac[,c('cohort', 'patient_num', 'vaccine_date', 'vaccine_type')], by = c('cohort', 'patient_num'))
   
   ## delete patients with no vaccine
   dat.loc.obs = dat.loc.obs %>% filter(vaccine_type %in% c('Moderna', 'Pfizer'))
   
   ## create binary code
-  dat.loc.obs$code_date = dat.loc.obs$admission_date + dat.loc.obs$days_since_admission
+  dat.loc.obs$code_date = as.Date(dat.loc.obs$admission_date) + dat.loc.obs$days_since_admission
   dat.loc.obs$code_days = as.numeric(difftime(dat.loc.obs$vaccine_date, dat.loc.obs$code_date, units = 'days'))
-  dat.loc.obs = dat.loc.obs %>% select(cohort, patient_num, cov, code_days) %>%
-    filter(code_days > 0) %>% group_by(cohort, patient_num, cov) %>% arrange(code_days) %>% slice(1)
+  dat.loc.obs = dat.loc.obs %>% dplyr::select(cohort, patient_num, cov, code_days) %>%
+    dplyr::filter(code_days > 0) %>% dplyr::group_by(cohort, patient_num, cov) %>% dplyr::arrange(code_days) %>% dplyr::slice(1)
   
-  dat.loc.obs$cov_index = 0
-  dat.loc.obs$cov_index[dat.loc.obs$code_days < 365] = 1
-  dat.loc.obs$cov_index[dat.loc.obs$code_days >= 365] = 0
+  dat.loc.obs$cov_index = 1
+  #dat.loc.obs$cov_index[dat.loc.obs$code_days < 365] = 1
+  #dat.loc.obs$cov_index[dat.loc.obs$code_days >= 365] = 0
   
-  dat.cov.save = spread(dat.loc.obs[,c('cohort', 'patient_num', 'cov', 'cov_index')], key = cov, value = cov_index, fill = 0)
-  
- 
+  dat.cov.save = tidyr::spread(dat.loc.obs[,c('cohort', 'patient_num', 'cov', 'cov_index')], key = cov, value = cov_index, fill = 0)
   
   #### combine the datasets
   dat.input = left_join(dat.imp.save, dat.cov.save, by = c('cohort', 'patient_num'))
@@ -226,7 +224,7 @@ create.table = function(input.path){
   dat.input = na.omit(dat.input)
 
   # Summary statistics for the processed data
-  summary(dat.input[, c(3:30)])
+  colMeans(dat.input[,c((3:31))])
   
   # make data split reproducible
   set.seed(2022)
@@ -239,12 +237,22 @@ create.table = function(input.path){
   write.csv(test, file = paste0(output.path, '/test_', siteid, '.csv'), row.names = F)
   
   
-  return(list(X.train = train[, c(4:18)],
-              A.train = train[, 3],
-              Y.train = train[, c(19:30)],
-              X.test = test[,c(4:18)],
-              A.test = test[, 3],
-              Y.test = test[, c(19:30)]))
+  return(list(X.train = train[, c("gender_male","age_50","age_70","age_80","race",
+                                  "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
+                                  "pre_vaccine_infection")],
+              A.train = train[, "A"],
+              Y.train = train[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
+                                  "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",
+                                  "hosp_6month","hosp_9month", "hosp_999","death_3month","death_6month",
+                                  "death_9month","death_999")],
+              X.test = test[,c("gender_male","age_50","age_70","age_80","race",
+                               "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
+                               "pre_vaccine_infection")],
+              A.test = test[, "A"],
+              Y.test = test[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
+                                "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",
+                                "hosp_6month","hosp_9month", "hosp_999","death_3month","death_6month",
+                                "death_9month","death_999")]))
   
 }
 
