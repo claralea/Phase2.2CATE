@@ -4,7 +4,7 @@
 \alias{run_analysis}
 \title{run CATE analysis}
 \usage{
-run_analysis(input.path, output.path, siteid)
+run_analysis(input.path, output.path, siteid = "BI", threshold = 0)
 }
 \arguments{
 \item{input.path}{string with the path to the folder containing phase 2.2 data}
