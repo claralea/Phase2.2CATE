@@ -4,7 +4,9 @@
 #' @param output.path string with the path to the folder to save the results
 #' @param siteid string
 #' @return dataframe containing the results for all outcomes of interest
-#' @import SuperLearner, ranger, data.table, dplyr, tidyr, partykit, rpart
+#' @import SuperLearner data.table dplyr tidyr partykit rpart
+#' @importFrom stats  as.formula binomial cov gaussian glm na.omit predict
+#' @importFrom utils write.csv
 #' @export
 
 
