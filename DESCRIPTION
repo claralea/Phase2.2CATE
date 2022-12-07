@@ -11,6 +11,8 @@ RoxygenNote: 7.2.1
 Imports:
   SuperLearner, 
   data.table, 
+  bnlearn,
+  IsingFit, 
   dplyr, 
   tidyr,
   ggpubr, 
