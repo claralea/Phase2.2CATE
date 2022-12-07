@@ -77,3 +77,17 @@ site_estimation <- function(X, A, Y, ps.model="LR", or.model="SL", ite.model="lm
               test_rank_x = test_rank_x)
   return(res)
 }
+
+deiden <- function(object, test_rank_x){
+  # remove potentially identifiable pts info and reduce output size
+  object$data = object$data[1,] 
+  object$data[1,] = c(0, rep(factor(1), sum(test_rank_x)))
+  object$fitted <- NULL
+  rm(list=ls(envir = attr(object$terms, ".Environment")),
+     envir = attr(object$terms,".Environment"))
+  object$terms <- NULL
+  object$info$terms <- NULL
+  object$node$info[! names(object$node$info) %in% "object"] <- NULL
+  object$node$info$object[c("residuals", "df.residual", "fitted.values","effects","contrasts")] <- NULL
+  return(object)
+}
