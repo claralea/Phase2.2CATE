@@ -121,13 +121,12 @@ construct_outcomes = function(summary,
 }
 
 
-create.table = function(dat.loc.race,dat.loc.sum,dat.loc.patobs,dat.loc.vac){
+create.table = function(input.path){
   # #### Read the data
-  # #input.path="/Users/harrisonzhang/Dropbox (HMS)/4CE/Vaccine Study/Phase2.2CATE-main/R/"
-  # dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
-  # dat.loc.sum = fread(paste0(input.path, '/LocalPatientSummary.csv'))
-  # dat.loc.patobs = fread(paste0(input.path, '/LocalPatientObservations.csv'))
-  # dat.loc.vac = fread(paste0(input.path, '/LocalPatientVaccine.csv'))
+  dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
+  dat.loc.sum = fread(paste0(input.path, '/LocalPatientSummary.csv'))
+  dat.loc.patobs = fread(paste0(input.path, '/LocalPatientObservations.csv'))
+  dat.loc.vac = fread(paste0(input.path, '/LocalPatientVaccine.csv'))
   
   #### Map observatons to PheCodes
   dat.icd=dplyr::filter(dat.loc.patobs,concept_type%in%c("DIAG-ICD10","DIAG-ICD9"))

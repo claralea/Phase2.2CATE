@@ -13,7 +13,10 @@
 
 # input.path = dir.repo = dir.data = output.path = "../"
 # siteid="VA"
-# load("sysdata.rda")
+load("sysdata.rda") # Harrison's mapping from concept_code to PheCode
+mapping.old=icd10.phecode.map # rename icd10.phecode.map stored in sysdata.rda
+mapping = mapping.old #In case where site has their own mapping such as VA. By default, use Harrison's mapping
+### Clara: both mapping.old and mapping are required in create.table function. ###
 
 run_analysis = function(input.path, output.path, siteid="VA"){
   if (siteid=="VA"){
