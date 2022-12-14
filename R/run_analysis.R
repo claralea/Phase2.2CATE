@@ -9,16 +9,14 @@
 #' @importFrom utils write.csv
 #' @export
 
-
-
-# input.path = dir.repo = dir.data = output.path = "../"
-# siteid="VA"
-load("sysdata.rda") # Harrison's mapping from concept_code to PheCode
-mapping.old=icd10.phecode.map # rename icd10.phecode.map stored in sysdata.rda
-mapping = mapping.old #In case where site has their own mapping such as VA. By default, use Harrison's mapping
-### Clara: both mapping.old and mapping are required in create.table function. ###
-
 run_analysis = function(input.path, output.path, siteid="VA"){
+  # input.path = dir.repo = dir.data = output.path = "../"
+  # siteid="VA"
+  load("sysdata.rda") # Harrison's mapping from concept_code to PheCode
+  mapping.old=icd10.phecode.map # rename icd10.phecode.map stored in sysdata.rda
+  mapping = mapping.old #In case where site has their own mapping such as VA. By default, use Harrison's mapping
+  ### Clara: both mapping.old and mapping are required in create.table function. ###
+
   if (siteid=="VA"){
     threshold <- 11
   } else{
@@ -26,23 +24,23 @@ run_analysis = function(input.path, output.path, siteid="VA"){
   }
   "Reading the data..."
   data.input = create.table(input.path)
-  
+
   # count the empirical distribution of X
   print("Estimating distribution of X...")
   X = as.matrix(rbind(data.input$X.train, data.input$X.test))
   X_df <- data.frame(X)
   X_df[,1:ncol(X_df)] <- lapply(X_df[,1:ncol(X_df)], factor)
-  rank_x <- sapply(droplevels(X_df), nlevels) > 1 
-  
-  #### Ising Model using "IsingFit" package #### 
-  Ising.model <- IsingFit(X[,rank_x], family='binomial', plot=FALSE, progressbar=TRUE) 
-  
+  rank_x <- sapply(droplevels(X_df), nlevels) > 1
+
+  #### Ising Model using "IsingFit" package ####
+  Ising.model <- IsingFit(X[,rank_x], family='binomial', plot=FALSE, progressbar=TRUE)
+
   #### Bayesian Network using "bnlearn" package ####
-  structure.bic <- hc(data.frame(X_df[,rank_x]), score = "bic") 
+  structure.bic <- hc(data.frame(X_df[,rank_x]), score = "bic")
   bn.mod.bic <- bn.fit(structure.bic, data = X_df[,rank_x])
-  structure.bde <- hc(data.frame(X_df[,rank_x]), score = "bde") 
+  structure.bde <- hc(data.frame(X_df[,rank_x]), score = "bde")
   bn.mod.bde <- bn.fit(structure.bde, data = X_df[,rank_x])
-  
+
   #### count nx > threshold ####
   p <- dim(X)[2]
   X_full <- as.matrix(expand.grid(rep(list(0:1), p)))
@@ -57,20 +55,20 @@ run_analysis = function(input.path, output.path, siteid="VA"){
                  mean.X = colMeans(X),
                  rank.x = rank_x,
                  site.size = dim(X)[1])
-  
+
   X = as.matrix(data.input$X.train)
   A = as.matrix(data.input$A.train)
-  
+
   for(out in colnames(data.input$Y.train)){
     Y = as.matrix(data.frame(data.input$Y.train)[, out])
     print(paste0("Running analysis for outcome: ", out))
-    
+
     res_y = site_estimation(X, A, Y)
-    
+
     res_all[[out]] = deiden(res_y$DR_fit, res_y$test_rank_x)
   }
   res_all[["train_rank_x"]] = res_y$test_rank_x
-  
+
   print(paste0("Saving the results in ", output.path))
   save(res_all, file = paste0(output.path, '/CATE_results_', siteid,".rda"))
 }
