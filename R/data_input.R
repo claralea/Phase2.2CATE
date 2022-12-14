@@ -121,11 +121,8 @@ construct_outcomes = function(summary,
 }
 
 
-
-
 create.table = function(input.path){
-  #### Read the data
-  #input.path="/Users/harrisonzhang/Dropbox (HMS)/4CE/Vaccine Study/Phase2.2CATE-main/R/"
+  # #### Read the data
   dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
   dat.loc.sum = fread(paste0(input.path, '/LocalPatientSummary.csv'))
   dat.loc.patobs = fread(paste0(input.path, '/LocalPatientObservations.csv'))
@@ -133,8 +130,8 @@ create.table = function(input.path){
   
   #### Map observatons to PheCodes
   dat.icd=dplyr::filter(dat.loc.patobs,concept_type%in%c("DIAG-ICD10","DIAG-ICD9"))
-  dat.phecode=left_join(dat.icd, icd10.phecode.map[,c("concept_code","phecode","description")],
-                    by="concept_code")
+  dat.phecode=left_join(dat.icd, mapping[,c("concept_code","phecode","description")],
+                        by="concept_code") #### modify to new mapping
   dat.phecode=dplyr::filter(dat.phecode,!is.na(dat.phecode$phecode))
   
   # Create outcomes
@@ -142,12 +139,13 @@ create.table = function(input.path){
   
   #### Select unique patients and vaccine info / Only keep Moderna(1) and Pfizer(0). Save date for now as t0
   dat.imp = dat.loc.vac %>% filter(vaccine_type %in% c('Moderna', 'Pfizer'))
+  dat.imp$A=rep(NA,nrow(dat.imp)) #### modify
   dat.imp$A[which(dat.imp$vaccine_type == 'Moderna')] = 1
   dat.imp$A[which(dat.imp$vaccine_type == 'Pfizer')] = 0
   dat.imp$vaccine_date = substr(as.character(dat.imp$vaccine_date), 1, 7)
   
   #### Select demographics info / Age, gender, race
-  dat.imp = left_join(dat.imp, dat.loc.sum[, c('cohort', 'patient_num', 'age', 'sex')], by = c('cohort', 'patient_num'))
+  dat.imp = left_join(dat.imp, dat.loc.sum[, c('cohort', 'patient_num', 'age', 'sex')], by = c( 'patient_num')) #### modify
   dat.imp$age_50 = dat.imp$age_70 = dat.imp$age_80 = 0
   dat.imp$age_50[dat.imp$age<50] = 1
   dat.imp$age_70[dat.imp$age<70] = 1
@@ -161,17 +159,16 @@ create.table = function(input.path){
   dat.imp.save = left_join(dat.imp[, c('cohort', 'patient_num','A', 'gender_male', 'age_50', 'age_70', 'age_80')],
                            dat.loc.race[, c('cohort', 'patient_num', 'race')], by = c('cohort', 'patient_num'))
   
-  
   #### Select covariates info
   dat.loc.obs = left_join(dat.phecode, 
                           dat.loc.sum[,c('cohort', 'patient_num', 'admission_date')], 
                           by = c('cohort', 'patient_num'))
-  dat.loc.obs=dat.loc.obs[!duplicated(dat.loc.obs),]
+  dat.loc.obs=dat.loc.obs%>%distinct() #### modify: previous one took over 30 min without stopping, current takes seconds
   ### Identify relevant covariates of interest
   cov.str=c("asthma","bronchitis","emphysema","hypertension",
             "CKD","heart failure","obesity")
   icd.cancer = c(paste0('C0', c(0:9)), paste0('C', c(10:41)), 'C43', 'C45', paste0('C', c(47:86)), 'C88', paste0('C', c(90:96)), 'C7A', 'C7B')
-  phecode.cancer = icd10.phecode.map$phecode[icd10.phecode.map$concept_code %in% icd.cancer];phecode.cancer=unique(phecode.cancer)
+  phecode.cancer = mapping.old$phecode[mapping.old$concept_code %in% icd.cancer];phecode.cancer=unique(phecode.cancer)
   phecode.chd="411"
   phecode.t2d="250.2"
   phecode.copd="496"
@@ -199,7 +196,8 @@ create.table = function(input.path){
   
   ## delete rows with other codes
   #dat.loc.obs = na.omit(dat.loc.obs)
-  dat.loc.obs = left_join(dat.loc.obs, dat.loc.vac[,c('cohort', 'patient_num', 'vaccine_date', 'vaccine_type')], by = c('cohort', 'patient_num'))
+  dat.loc.obs = left_join(dat.loc.obs, dat.loc.vac[,c('patient_num', 'vaccine_date', 'vaccine_type')], by = c('patient_num'))
+  #### modify
   
   ## delete patients with no vaccine
   dat.loc.obs = dat.loc.obs %>% filter(vaccine_type %in% c('Moderna', 'Pfizer'))
@@ -217,14 +215,16 @@ create.table = function(input.path){
   dat.cov.save = tidyr::spread(dat.loc.obs[,c('cohort', 'patient_num', 'cov', 'cov_index')], key = cov, value = cov_index, fill = 0)
   
   #### combine the datasets
+  dat.imp.save=na.omit(dat.imp.save) #### modify: a lot of NAs
   dat.input = left_join(dat.imp.save, dat.cov.save, by = c('cohort', 'patient_num'))
   dat.input[is.na(dat.input)] = 0 ## 0 when don't have any cov
   dat.input = left_join(dat.input, res, by = c('patient_num'))
   
   dat.input = na.omit(dat.input)
-
+  dat.input=dat.input%>%distinct() #### modify
+  
   # Summary statistics for the processed data
-  colMeans(dat.input[,c((3:31))])
+  colMeans(dat.input[,c((3:31))]) 
   
   # make data split reproducible
   set.seed(2022)
@@ -255,5 +255,6 @@ create.table = function(input.path){
                                 "death_9month","death_999")]))
   
 }
+
 
 
