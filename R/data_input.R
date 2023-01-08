@@ -145,7 +145,7 @@ create.table = function(input.path){
   dat.imp$vaccine_date = substr(as.character(dat.imp$vaccine_date), 1, 7)
   
   #### Select demographics info / Age, gender, race
-  dat.imp = left_join(dat.imp, dat.loc.sum[, c('cohort', 'patient_num', 'age', 'sex')], by = c( 'patient_num')) #### modify
+  dat.imp = left_join(dat.imp, dat.loc.sum[, c('cohort', 'patient_num', 'age', 'sex')], by = c( 'patient_num', 'cohort')) #### modify [wj: add cohort into "by"]
   dat.imp$age_50 = dat.imp$age_70 = dat.imp$age_80 = 0
   dat.imp$age_50[dat.imp$age<50] = 1
   dat.imp$age_70[dat.imp$age<70] = 1
@@ -223,6 +223,11 @@ create.table = function(input.path){
   dat.input = na.omit(dat.input)
   dat.input=dat.input%>%distinct() #### modify
   
+  # left join vaccine date and dominant variant by month
+  dat.input = left_join(dat.input, dat.imp[, c('patient_num','vaccine_date')], by=c('patient_num'))
+  dat.input = left_join(dat.input, variant.dist[,c('month','variant')], by=c('vaccine_date'='month'))
+  dat.input$vaccine_date = NULL
+  
   # Summary statistics for the processed data
   colMeans(dat.input[,c((3:31))]) 
   
@@ -239,7 +244,7 @@ create.table = function(input.path){
   
   return(list(X.train = train[, c("gender_male","age_50","age_70","age_80","race",
                                   "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
-                                  "pre_vaccine_infection")],
+                                  "pre_vaccine_infection","variant")],
               A.train = train[, "A"],
               Y.train = train[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
                                   "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",
@@ -247,7 +252,7 @@ create.table = function(input.path){
                                   "death_9month","death_999")],
               X.test = test[,c("gender_male","age_50","age_70","age_80","race",
                                "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
-                               "pre_vaccine_infection")],
+                               "pre_vaccine_infection","variant")],
               A.test = test[, "A"],
               Y.test = test[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
                                 "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",
