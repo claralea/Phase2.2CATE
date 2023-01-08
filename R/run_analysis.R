@@ -36,9 +36,6 @@ run_analysis = function(input.path, output.path, siteid="VA"){
   X_df[,1:ncol(X_df)] <- lapply(X_df[,1:ncol(X_df)], factor)
   rank_x <- sapply(droplevels(X_df), nlevels) > 1 
   
-  #### Ising Model using "IsingFit" package #### 
-  Ising.model <- IsingFit(X[,rank_x], family='binomial', plot=FALSE, progressbar=TRUE) 
-  
   #### Bayesian Network using "bnlearn" package ####
   structure.bic <- hc(data.frame(X_df[,rank_x]), score = "bic") 
   bn.mod.bic <- bn.fit(structure.bic, data = X_df[,rank_x])
@@ -51,9 +48,7 @@ run_analysis = function(input.path, output.path, siteid="VA"){
   xn <- as.vector(table(rbind(X, X_full) %*% 2^c(0:(p-1))) - 1)
   xn[xn < threshold] <- 0 # only share cell with enough occurrence
   xn <- as.integer(xn)
-  res_all = list(Ising.graph=Ising.model$weiadj,
-                 Ising.external.field=Ising.model$thresholds,
-                 BayesNet.bic=bn.mod.bic,
+  res_all = list(BayesNet.bic=bn.mod.bic,
                  BayesNet.bde=bn.mod.bde,
                  xn=xn,
                  mean.X = colMeans(X),
