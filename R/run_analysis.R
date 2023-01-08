@@ -27,7 +27,7 @@ run_analysis = function(input.path, output.path, siteid="VA"){
     threshold <- 5 #occurrence of xn cannot be shared if below threshold
   }
   "Reading the data..."
-  data.input = create.table(input.path)
+  data.input = create.table(input.path, output.path)
   
   # count the empirical distribution of X
   print("Estimating distribution of X...")
@@ -45,6 +45,13 @@ run_analysis = function(input.path, output.path, siteid="VA"){
   #### count nx > threshold ####
   p <- dim(X)[2]
   X_full <- as.matrix(expand.grid(rep(list(0:1), p)))
+  X_full_df <- data.frame(X_full)
+  colnames(X_full_df) <- colnames(X)
+  X_full_df = X_full_df %>%  # remove invalid profiles
+    filter(variant_Omicron+variant_Delta+variant_X20I.Alpha.V1 <= 1) %>%
+    filter(age_50 >= age_70) %>%
+    filter(age_70 >= age_80)
+  X_full <- as.matrix(X_full_df)
   xn <- as.vector(table(rbind(X, X_full) %*% 2^c(0:(p-1))) - 1)
   xn[xn < threshold] <- 0 # only share cell with enough occurrence
   xn <- as.integer(xn)

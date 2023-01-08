@@ -121,7 +121,7 @@ construct_outcomes = function(summary,
 }
 
 
-create.table = function(input.path){
+create.table = function(input.path, output.path){
   # #### Read the data
   dat.loc.race = fread(paste0(input.path, '/LocalPatientRace.csv'))
   dat.loc.sum = fread(paste0(input.path, '/LocalPatientSummary.csv'))
@@ -147,9 +147,9 @@ create.table = function(input.path){
   #### Select demographics info / Age, gender, race
   dat.imp = left_join(dat.imp, dat.loc.sum[, c('cohort', 'patient_num', 'age', 'sex')], by = c( 'patient_num', 'cohort')) #### modify [wj: add cohort into "by"]
   dat.imp$age_50 = dat.imp$age_70 = dat.imp$age_80 = 0
-  dat.imp$age_50[dat.imp$age<50] = 1
-  dat.imp$age_70[dat.imp$age<70] = 1
-  dat.imp$age_80[dat.imp$age<80] = 1
+  dat.imp$age_50[dat.imp$age>50] = 1
+  dat.imp$age_70[dat.imp$age>70] = 1
+  dat.imp$age_80[dat.imp$age>80] = 1
   
   dat.imp$gender_male[dat.imp$sex == 'male'] = 1
   
@@ -227,12 +227,18 @@ create.table = function(input.path){
   dat.input = left_join(dat.input, dat.imp[, c('patient_num','vaccine_date')], by=c('patient_num'))
   dat.input = left_join(dat.input, variant.dist[,c('month','variant')], by=c('vaccine_date'='month'))
   dat.input$vaccine_date = NULL
+  # Create dummy variable for variant
+  dat.input$variant_X20I.Alpha.V1 = dat.input$variant_Delta = dat.input$variant_Omicron = 0
+  dat.input$variant_X20I.Alpha.V1[dat.input$variant == "X20I..Alpha..V1."] = 1
+  dat.input$variant_Delta[dat.input$variant == "Delta"] = 1
+  dat.input$variant_Omicron[dat.input$variant == "Omicron"] = 1
+  dat.input$variant = NULL
   
   # Summary statistics for the processed data
-  colMeans(dat.input[,c((3:31))]) 
+  colMeans(dat.input[,c((3:34))]) 
   
   # make data split reproducible
-  set.seed(2022)
+  set.seed(2023)
   
   # use 20% of dataset for tree and 80% for FACE
   train = dat.input %>% dplyr::sample_frac(0.20)
@@ -244,7 +250,8 @@ create.table = function(input.path){
   
   return(list(X.train = train[, c("gender_male","age_50","age_70","age_80","race",
                                   "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
-                                  "pre_vaccine_infection","variant")],
+                                  "pre_vaccine_infection","variant_Omicron", 
+                                  "variant_Delta", "variant_X20I.Alpha.V1")],
               A.train = train[, "A"],
               Y.train = train[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
                                   "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",
@@ -252,7 +259,8 @@ create.table = function(input.path){
                                   "death_9month","death_999")],
               X.test = test[,c("gender_male","age_50","age_70","age_80","race",
                                "asthma","bronchitis","copd","chd","hf","hypertension","diabetes","ckd","cancer","obesity",
-                               "pre_vaccine_infection","variant")],
+                               "pre_vaccine_infection","variant_Omicron", 
+                               "variant_Delta", "variant_X20I.Alpha.V1")],
               A.test = test[, "A"],
               Y.test = test[, c("post_vaccine_infection_3month","post_vaccine_infection_6month",
                                 "post_vaccine_infection_9month","post_vaccine_infection_999","hosp_3month",

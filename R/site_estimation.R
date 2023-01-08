@@ -179,8 +179,12 @@ site_estimation3 <- function(X, A, Y, ps.model="LR", or.model="SL", ite.model="l
   print("Estimating nuisance functions is finished!")
   
   X_full <- as.matrix(expand.grid(rep(list(0:1), p)))
-  colnames(X_full) <- colnames(X)
   X_full_df <- data.frame(X_full)
+  colnames(X_full_df) <- colnames(X)
+  X_full_df = X_full_df %>% 
+    filter(variant_Omicron+variant_Delta+variant_X20I.Alpha.V1 <= 1) %>%
+    filter(age_50 >= age_70) %>%
+    filter(age_70 >= age_80)
   X_full_df[,1:p] <- lapply(X_full_df[,1:p], factor)
   mu1_est <- predict(mu1_fit, X_full_df[,test_rank_x], onlySL = TRUE)$pred
   mu0_est <- predict(mu0_fit, X_full_df[,test_rank_x], onlySL = TRUE)$pred
